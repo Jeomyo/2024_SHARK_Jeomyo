@@ -227,7 +227,7 @@ self.local_path_pub.publish(local_path_msg)
 </details>
 
 
-# 3. 차량 인식 
+# 3. yolov3 기반 차량 인식 
 
 ## 1) yolov3.py - 카메라 이미지 기반 실시간 차량 탐지
 
@@ -235,9 +235,9 @@ self.local_path_pub.publish(local_path_msg)
 |------|------|
 |구독 토픽|`/image_jpeg/compressed` (CompressedImage)|
 |퍼블리시 토픽|`/car_bounding_boxes` (Float32MultiArray)|
-|주요 기능 요약|카메라 이미지에서 차량 객체를 실시간으로 탐지하고, 바운딩 박스를 퍼블리시하여 LiDAR와의 캘리브레이션 기반 거리 추정을 위한 전처리 데이터를 제공함.|
+|주요 기능 요약|카메라 이미지에서 차량 객체를 실시간으로 탐지하고, 차량의 바운딩 박스를 퍼블리시하여 LiDAR와의 캘리브레이션 기반 거리 추정을 위한 전처리 데이터를 제공함.|
 
-<details> <summary> <b>📌 yolov3.py 코드 분석 펼쳐보기 </b> </summary>
+<details> <summary> <b>📌 yolov3 코드 분석 펼쳐보기 </b> </summary>
   
 ### 1. YOLOv3 네트워크 및 클래스 초기화
 ```python
@@ -286,3 +286,55 @@ if not car_detected:
     self.bbox_pub.publish(empty_bbox_data)
 ```
 - 차량이 탐지되지 않으면 기본값 [0, 0, 0, 0] 전송 → 이후 거리 계산에서 무시되도록 처리
+
+</details>
+
+# 4. LiDAR-Camera Calibration 및 차량 거리 추정 노드
+LiDAR와 Camera의 좌표계를 일치시킨 뒤, 라이다 포인트를 카메라 이미지 평면에 정사영(projection)시켜 YOLO로 탐지된 차량의 거리 정보를 계산하는 노드이다.
+
+
+- 카메라: 객체 인식에 유용하나 3D 정보들을 정확히 알 수 없음
+- 라이다: 3D 정보들을 바로 알 수 있음
+→ 라이다로 얻은 포인트 클라우드들을 카메라에 정사영(projection)시켜 정보들을 융합하면 훨씬 정확도가 높은 정보들이 나올 것임!
+
+## ✅ Lidar2Cam Transformation
+<p align="left">
+  <img src="https://github.com/user-attachments/assets/76aba160-299e-4f99-a8f2-f03df97354f9" alt="이미지 설명" width="700">
+</p>
+
+- LiDAR와 Camera의 좌표계는 서로 다르기 때문에 정렬(좌표계 변환)이 필요하다.
+
+- LiDAR는 전방을 X축, 좌측을 Y축, 위를 Z축으로 하는 우측 좌표계를 사용
+
+- Camera는 전방을 Z축, 오른쪽을 X축, 아래쪽을 Y축으로 하는 OpenCV 좌표계를 따름
+
+- 카메라 이미지의 2D 평면 상에서는 원점은 왼쪽 상단 (0,0)에 위치하며, 오른쪽으로 갈수록 X좌표 증가, 아래쪽으로 갈수록 Y좌표 증가
+
+→ 따라서 LiDAR 포인트를 이미지에 정사영하기 위해서는 LiDAR 좌표계 → 카메라 좌표계 → 이미지 좌표계로의 변환 순서를 정확히 수행해야 한다.
+
+## ✅ projection
+**Projection**은 LiDAR로부터 얻은 3차원 좌표 (X,Y,Z)를 카메라 이미지 평면의 2차원 좌표 (u,v)로 매핑하는 작업이다. 이를 위해 카메라의 **Intrinsic Matrix**를 활용하며, 동차 좌표(Homogeneous Coordinates) 기반 행렬 곱 연산으로 구현된다.
+
+### 📌 카메라 내부 파라미터 행렬 (Intrinsic Matrix)
+$$
+K =
+\begin{bmatrix}
+f_x & 0 & width/2 \\
+0 & f_y & height/2 \\
+0 & 0 & 1
+\end{bmatrix}
+$$
+
+$f_x , f_y$ = focal length (픽셀 단위)
+
+### 📌 시뮬레이터 기반 focal length 계산 (Vertical Field of View 사용)
+Morai 시뮬레이터는 수직 FOV(Vertical Field of View)를 제공하므로, focal length는 다음과 같이 계산한다.
+
+$$
+f_x = f_y = \frac{Height}{2 \cdot \tan(\frac{FOV}{2})}
+$$
+
+
+
+
+
