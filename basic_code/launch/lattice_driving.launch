@@ -1,0 +1,21 @@
+<launch>
+
+    <!-- Global Path Publisher -->
+    <node pkg="basic_code" type="global_path_pub.py" name="global_path_pub" >
+        <!-- 경로 파일을 설정하는 파라미터 -->
+        <param name="path_file" value="mando_path.txt" />
+    </node>
+
+    <!-- GPS to UTM Publisher -->
+    <node pkg="basic_code" type="gps.py" name="gps_to_utm" />
+
+    <!-- GPS and IMU Parser -->
+    <node pkg="basic_code" type="gpsimu_parser.py" name="gpsimu_parser"  />
+
+    <!-- IMU Parser -->
+    <node pkg="basic_code" type="imu.py" name="imu_parser" />
+    <node pkg="basic_code" type="tf_pub.py" name="status_listener"  />
+
+   
+
+</launch>
