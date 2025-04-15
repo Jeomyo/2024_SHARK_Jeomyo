@@ -17,7 +17,7 @@ class read_path_pub:
         self.global_path_msg.header.frame_id = '/map'
         
         # 런치 파일에서 파라미터로 경로를 받아옴
-        path_file = rospy.get_param('~path_file', 'mando_path.txt')  # 기본값은 test.txt
+        path_file = rospy.get_param('~path_file', 'kcity.txt')  # 기본값은 test.txt
 
         rospack = rospkg.RosPack()
         pkg_path = rospack.get_path('basic_code')
